@@ -1,1 +1,1 @@
-# godot-plugin-facebook
+The plugin is being developed. Do not use in production.
