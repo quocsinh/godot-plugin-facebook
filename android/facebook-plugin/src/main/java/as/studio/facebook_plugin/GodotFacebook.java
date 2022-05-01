@@ -14,6 +14,7 @@ import android.util.Log;
 import android.view.View;
 import android.webkit.WebView;
 
+import androidx.annotation.Keep;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
@@ -147,7 +148,7 @@ public class GodotFacebook extends GodotPlugin {
             @Override
             public void onCancel() {
                 FacebookOperationCanceledException e = new FacebookOperationCanceledException();
-                    handleError(e, ON_LOGIN);
+                handleError(e, ON_LOGIN);
 
                 if (lastReauthorize) {
                     handleError(e, REAUTHORIZE);
@@ -158,7 +159,7 @@ public class GodotFacebook extends GodotPlugin {
             @Override
             public void onError(FacebookException e) {
                 Log.e("Activity", String.format("Error: %s", e.toString()));
-                    handleError(e, ON_LOGIN);
+                handleError(e, ON_LOGIN);
 
                 if (lastReauthorize) {
                     handleError(e, REAUTHORIZE);
@@ -178,7 +179,7 @@ public class GodotFacebook extends GodotPlugin {
         shareDialog.registerCallback(callbackManager, new FacebookCallback<Sharer.Result>() {
             @Override
             public void onSuccess(Sharer.Result result) {
-                emitSignal(SHOW_DIALOG_RESPONSE, CALLBACK_SUCCESS_CODE,result.getPostId());
+                emitSignal(SHOW_DIALOG_RESPONSE, CALLBACK_SUCCESS_CODE, result.getPostId());
             }
 
             @Override
@@ -263,22 +264,32 @@ public class GodotFacebook extends GodotPlugin {
         callbackManager.onActivityResult(requestCode, resultCode, data);
     }
 
+    @Keep
+    @UsedByGodot
     public void setApplicationId(String appId) {
         FacebookSdk.setApplicationId(appId);
     }
 
+    @Keep
+    @UsedByGodot
     public String getApplicationId() {
         return FacebookSdk.getApplicationId();
     }
 
+    @Keep
+    @UsedByGodot
     public String getApplicationName() {
         return FacebookSdk.getApplicationName();
     }
 
+    @Keep
+    @UsedByGodot
     public void setApplicationName(String appName) {
         FacebookSdk.setApplicationName(appName);
     }
 
+    @Keep
+    @UsedByGodot
     public void login(String[] permissions) {
         Log.d(TAG, "login FB");
 
@@ -289,17 +300,23 @@ public class GodotFacebook extends GodotPlugin {
         LoginManager.getInstance().logIn(getActivity(), Arrays.asList(permissions));
     }
 
+    @Keep
+    @UsedByGodot
     public boolean isDataAccessExpired() {
         AccessToken token = AccessToken.getCurrentAccessToken();
         return (token != null && token.isDataAccessExpired());
     }
 
+    @Keep
+    @UsedByGodot
     public void logout() {
         if (hasAccessToken()) {
             LoginManager.getInstance().logOut();
         }
     }
 
+    @Keep
+    @UsedByGodot
     public void getDeferredApplink() {
         AppLinkData.fetchDeferredAppLinkData(getActivity().getApplicationContext(),
                 new AppLinkData.CompletionHandler() {
@@ -314,6 +331,8 @@ public class GodotFacebook extends GodotPlugin {
                 });
     }
 
+    @Keep
+    @UsedByGodot
     public void showDialog(JSONArray args) {
         Map<String, String> params = new HashMap<>();
         String method = null;
@@ -420,6 +439,8 @@ public class GodotFacebook extends GodotPlugin {
         }
     }
 
+    @Keep
+    @UsedByGodot
     public JSONObject getCurrentProfile() {
         if (Profile.getCurrentProfile() == null) {
             return null;
@@ -427,6 +448,8 @@ public class GodotFacebook extends GodotPlugin {
         return getProfile();
     }
 
+    @Keep
+    @UsedByGodot
     public void graphApi(JSONArray args) throws JSONException {
         lastGraphCall = true;
 
@@ -480,18 +503,26 @@ public class GodotFacebook extends GodotPlugin {
         loginManager.logIn(getActivity(), permissions);
     }
 
+    @Keep
+    @UsedByGodot
     public void setAutoLogAppEventsEnabled(boolean enabled) {
         FacebookSdk.setAutoLogAppEventsEnabled(enabled);
     }
 
+    @Keep
+    @UsedByGodot
     public void setAdvertiserIDCollectionEnabled(boolean enabled) {
         FacebookSdk.setAdvertiserIDCollectionEnabled(enabled);
     }
 
+    @Keep
+    @UsedByGodot
     public void setDataProcessingOptions(String[] options) {
         FacebookSdk.setDataProcessingOptions(options);
     }
 
+    @Keep
+    @UsedByGodot
     public void setUserData(JSONObject args) {
 
         Map<String, String> params = new HashMap<>();
@@ -509,10 +540,14 @@ public class GodotFacebook extends GodotPlugin {
         AppEventsLogger.setUserData(params.get("em"), params.get("fn"), params.get("ln"), params.get("ph"), params.get("db"), params.get("ge"), params.get("ct"), params.get("st"), params.get("zp"), params.get("cn"));
     }
 
+    @Keep
+    @UsedByGodot
     public void clearUserData() {
         AppEventsLogger.clearUserData();
     }
 
+    @Keep
+    @UsedByGodot
     public void logEvent(JSONArray args) throws JSONException {
         if (args.length() == 0) {
             // Not enough parameters
@@ -559,6 +594,8 @@ public class GodotFacebook extends GodotPlugin {
         }
     }
 
+    @Keep
+    @UsedByGodot
     public void logPurchase(JSONArray args) throws JSONException {
         if (args.length() < 2 || args.length() > 3) {
             return;
@@ -593,6 +630,8 @@ public class GodotFacebook extends GodotPlugin {
         }
     }
 
+    @Keep
+    @UsedByGodot
     public boolean checkHasCorrectPermissions(String[] permissions) {
 
         List<String> perm = Arrays.asList(permissions);
@@ -606,6 +645,8 @@ public class GodotFacebook extends GodotPlugin {
         return true;
     }
 
+    @Keep
+    @UsedByGodot
     public void reauthorizeDataAccess() {
         lastGraphCall = false;
         lastGraphRequestMethod = null;
@@ -614,6 +655,8 @@ public class GodotFacebook extends GodotPlugin {
         LoginManager.getInstance().reauthorizeDataAccess(getActivity());
     }
 
+    @Keep
+    @UsedByGodot
     public void getLoginStatus(boolean force) {
         if (force) {
             AccessToken.refreshCurrentAccessTokenAsync(new AccessToken.AccessTokenRefreshCallback() {
@@ -632,6 +675,8 @@ public class GodotFacebook extends GodotPlugin {
         }
     }
 
+    @Keep
+    @UsedByGodot
     public String getAccessToken() {
         if (hasAccessToken())
             return AccessToken.getCurrentAccessToken().getToken();
@@ -858,36 +903,6 @@ public class GodotFacebook extends GodotPlugin {
     @Override
     public String getPluginName() {
         return "GodotFacebook";
-    }
-
-    @NonNull
-    @Override
-    @UsedByGodot
-    public List<String> getPluginMethods() {
-        return Arrays.asList(
-                "getApplicationId",
-                "setApplicationId",
-                "getApplicationName",
-                "login",
-                "checkHasCorrectPermissions",
-                "isDataAccessExpired",
-                "reauthorizeDataAccess",
-                "logout",
-                "getLoginStatus",
-                "getAccessToken",
-                "setAutoLogAppEventsEnabled",
-                "setAdvertiserIDCollectionEnabled",
-                "setDataProcessingOptions",
-                "setUserData",
-                "clearUserData",
-                "logEvent",
-                "logPurchase",
-                "showDialog",
-                "getCurrentProfile",
-                "graphApi",
-                "getDeferredApplink",
-                "activateApp"
-        );
     }
 
     @NonNull
