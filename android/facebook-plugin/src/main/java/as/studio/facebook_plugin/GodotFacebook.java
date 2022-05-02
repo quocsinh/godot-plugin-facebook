@@ -1,18 +1,14 @@
 package as.studio.facebook_plugin;
 
 import android.app.Activity;
-import android.content.Context;
 import android.content.Intent;
-import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
-import android.util.ArraySet;
 import android.util.Base64;
 import android.util.Log;
 import android.view.View;
-import android.webkit.WebView;
 
 import androidx.annotation.Keep;
 import androidx.annotation.NonNull;
@@ -46,6 +42,7 @@ import com.facebook.share.model.SharePhotoContent;
 import com.facebook.share.widget.MessageDialog;
 import com.facebook.share.widget.ShareDialog;
 
+import org.godotengine.godot.Dictionary;
 import org.godotengine.godot.Godot;
 import org.godotengine.godot.plugin.GodotPlugin;
 import org.godotengine.godot.plugin.SignalInfo;
@@ -58,6 +55,7 @@ import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.net.URLDecoder;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Currency;
 import java.util.Date;
 import java.util.HashMap;
@@ -219,14 +217,10 @@ public class GodotFacebook extends GodotPlugin {
         gameRequestDialog.registerCallback(callbackManager, new FacebookCallback<GameRequestDialog.Result>() {
             @Override
             public void onSuccess(GameRequestDialog.Result result) {
-                try {
-                    JSONObject json = new JSONObject();
-                    json.put("requestId", result.getRequestId());
-                    json.put("recipientsIds", new JSONArray(result.getRequestRecipients()));
-                    emitSignal(SHOW_DIALOG_RESPONSE, CALLBACK_SUCCESS_CODE, json);
-                } catch (JSONException ex) {
-                    emitSignal(SHOW_DIALOG_RESPONSE, CALLBACK_SUCCESS_CODE, "");
-                }
+                Dictionary dictionary = new Dictionary();
+                dictionary.put("requestId", result.getRequestId());
+                dictionary.put("recipientsIds", result.getRequestRecipients());
+                emitSignal(SHOW_DIALOG_RESPONSE, CALLBACK_SUCCESS_CODE, dictionary);
             }
 
             @Override
@@ -262,6 +256,18 @@ public class GodotFacebook extends GodotPlugin {
         super.onMainActivityResult(requestCode, resultCode, data);
         Log.d(TAG, "activity result in plugin: requestCode(" + requestCode + "), resultCode(" + resultCode + ")");
         callbackManager.onActivityResult(requestCode, resultCode, data);
+    }
+
+    @Keep
+    @UsedByGodot
+    public void setClientToken(String token) {
+        FacebookSdk.setClientToken(token);
+    }
+
+    @Keep
+    @UsedByGodot
+    public String getClientToken() {
+        return FacebookSdk.getClientToken();
     }
 
     @Keep
@@ -333,33 +339,17 @@ public class GodotFacebook extends GodotPlugin {
 
     @Keep
     @UsedByGodot
-    public void showDialog(JSONArray args) {
+    public void showDialog(Dictionary dictionary) {
         Map<String, String> params = new HashMap<>();
         String method = null;
-        JSONObject parameters;
 
-        try {
-            parameters = args.getJSONObject(0);
-        } catch (JSONException e) {
-            parameters = new JSONObject();
-        }
+        Set<String> keys = dictionary.keySet();
 
-        Iterator<String> iter = parameters.keys();
-        while (iter.hasNext()) {
-            String key = iter.next();
+        for (String key : keys) {
             if (key.equals("method")) {
-                try {
-                    method = parameters.getString(key);
-                } catch (JSONException e) {
-                    Log.w(TAG, "Nonstring method parameter provided to dialog");
-                }
+                method = (String) dictionary.get(key);
             } else {
-                try {
-                    params.put(key, parameters.getString(key));
-                } catch (JSONException e) {
-                    // Need to handle JSON parameters
-                    Log.w(TAG, "Non-string parameter provided to dialog discarded");
-                }
+                params.put(key, (String) dictionary.get(key));
             }
         }
 
@@ -441,7 +431,7 @@ public class GodotFacebook extends GodotPlugin {
 
     @Keep
     @UsedByGodot
-    public JSONObject getCurrentProfile() {
+    public Dictionary getCurrentProfile() {
         if (Profile.getCurrentProfile() == null) {
             return null;
         }
@@ -450,24 +440,23 @@ public class GodotFacebook extends GodotPlugin {
 
     @Keep
     @UsedByGodot
-    public void graphApi(JSONArray args) throws JSONException {
+    public void graphApi(Dictionary dictionary) {
         lastGraphCall = true;
 
         String requestMethod = null;
-        if (args.length() < 3) {
+        if (dictionary.size() < 3) {
             lastGraphRequestMethod = null;
         } else {
-            lastGraphRequestMethod = args.getString(2);
-            requestMethod = args.getString(2);
+            lastGraphRequestMethod = (String) dictionary.get("method");
+            requestMethod = lastGraphRequestMethod;
         }
 
-        graphPath = args.getString(0);
-        JSONArray arr = args.getJSONArray(1);
+        graphPath = (String) dictionary.get("graphPath");
+        String[] per = (String[]) dictionary.get("permissions");
 
-        final Set<String> permissions = new HashSet<>(arr.length());
-        for (int i = 0; i < arr.length(); i++) {
-            permissions.add(arr.getString(i));
-        }
+        final Set<String> permissions = new HashSet<>();
+        if (per != null)
+            Collections.addAll(permissions, per);
 
         if (permissions.size() == 0) {
             makeGraphCall(requestMethod);
@@ -523,19 +512,13 @@ public class GodotFacebook extends GodotPlugin {
 
     @Keep
     @UsedByGodot
-    public void setUserData(JSONObject args) {
+    public void setUserData(Dictionary dictionary) {
 
         Map<String, String> params = new HashMap<>();
 
-        Iterator<String> iter = args.keys();
-        while (iter.hasNext()) {
-            String key = iter.next();
-            try {
-                params.put(key, args.getString(key));
-            } catch (JSONException e) {
-                Log.w(TAG, "Non-string parameter provided to setUserData discarded");
-            }
-        }
+        String[] keys = dictionary.get_keys();
+        for (String key : keys)
+            params.put(key, (String) dictionary.get(key));
 
         AppEventsLogger.setUserData(params.get("em"), params.get("fn"), params.get("ln"), params.get("ph"), params.get("db"), params.get("ge"), params.get("ct"), params.get("st"), params.get("zp"), params.get("cn"));
     }
@@ -548,82 +531,64 @@ public class GodotFacebook extends GodotPlugin {
 
     @Keep
     @UsedByGodot
-    public void logEvent(JSONArray args) throws JSONException {
-        if (args.length() == 0) {
+    public void logEvent(Dictionary dictionary) {
+        if (dictionary.size() == 0) {
             // Not enough parameters
             return;
         }
 
-        String eventName = args.getString(0);
-        if (args.length() == 1) {
+        String eventName = (String) dictionary.get("eventName");
+        if (dictionary.size() == 1) {
             logger.logEvent(eventName);
             return;
         }
 
         // Arguments is greater than 1
-        JSONObject params = args.getJSONObject(1);
+        Dictionary params = (Dictionary) dictionary.get("parameters");
         Bundle parameters = new Bundle();
-        Iterator<String> iter = params.keys();
-
-        while (iter.hasNext()) {
-            String key = iter.next();
-            try {
-                // Try get a String
-                String value = params.getString(key);
-                parameters.putString(key, value);
-            } catch (JSONException e) {
-                // Maybe it was an int
-                Log.w(TAG, "Type in AppEvent parameters was not String for key: " + key);
-                try {
-                    int value = params.getInt(key);
-                    parameters.putInt(key, value);
-                } catch (JSONException e2) {
-                    // Nope
-                    Log.e(TAG, "Unsupported type in AppEvent parameters for key: " + key);
-                }
+        String[] keys = params.get_keys();
+        for (String key : keys) {
+            Object value = params.get(key);
+            if (value instanceof String) {
+                parameters.putString(key, (String) value);
+            } else if (value instanceof Integer) {
+                parameters.putInt(key, (Integer) value);
             }
         }
 
-        if (args.length() == 2) {
+        if (dictionary.size() == 2) {
             logger.logEvent(eventName, parameters);
         }
 
-        if (args.length() == 3) {
-            double value = args.getDouble(2);
+        if (dictionary.size() == 3) {
+            double value = (Double) dictionary.get("value");
             logger.logEvent(eventName, value, parameters);
         }
     }
 
     @Keep
     @UsedByGodot
-    public void logPurchase(JSONArray args) throws JSONException {
-        if (args.length() < 2 || args.length() > 3) {
+    public void logPurchase(Dictionary dictionary) {
+        if (dictionary.size() < 2 || dictionary.size() > 3) {
             return;
         }
-        BigDecimal value = new BigDecimal(args.getString(0));
-        String currency = args.getString(1);
-        if (args.length() == 3) {
-            JSONObject params = args.getJSONObject(2);
+        BigDecimal value = new BigDecimal((Double) dictionary.get("value"));
+        String currency = (String) dictionary.get("currency");
+        if (dictionary.size() == 3) {
+            Dictionary params = (Dictionary) dictionary.get("parameters");
             Bundle parameters = new Bundle();
-            Iterator<String> iter = params.keys();
-            while (iter.hasNext()) {
-                String key = iter.next();
-                try {
-                    // Try get a String
-                    String paramValue = params.getString(key);
-                    parameters.putString(key, paramValue);
-                } catch (JSONException e) {
-                    // Maybe it was an int
-                    Log.w(TAG, "Type in AppEvent parameters was not String for key: " + key);
-                    try {
-                        int paramValue = params.getInt(key);
-                        parameters.putInt(key, paramValue);
-                    } catch (JSONException e2) {
-                        // Nope
-                        Log.e(TAG, "Unsupported type in AppEvent parameters for key: " + key);
-                    }
+            String[] keys = params.get_keys();
+            for (String key : keys) {
+
+                Object valueParam = params.get(key);
+
+                if (valueParam instanceof String) {
+                    parameters.putString(key, (String) valueParam);
+                } else if (valueParam instanceof Integer) {
+                    parameters.putInt(key, (Integer) valueParam);
                 }
             }
+
             logger.logPurchase(value, Currency.getInstance(currency), parameters);
         } else {
             logger.logPurchase(value, Currency.getInstance(currency));
@@ -757,11 +722,17 @@ public class GodotFacebook extends GodotPlugin {
         String graphAction = urlParts[0];
         GraphRequest graphRequest = GraphRequest.newGraphPathRequest(AccessToken.getCurrentAccessToken(), graphAction, new GraphRequest.Callback() {
             @Override
-            public void onCompleted(GraphResponse response) {
+            public void onCompleted(@NonNull GraphResponse response) {
                 if (response.getError() != null) {
                     emitSignal(GRAPH_CALL, CALLBACK_ERROR_CODE, getFacebookRequestErrorResponse(response.getError()));
                 } else {
-                    emitSignal(GRAPH_CALL, CALLBACK_SUCCESS_CODE, response.getJSONObject());
+                    try {
+                        JSONObject responseJson = response.getJSONObject();
+                        if (responseJson != null)
+                            emitSignal(GRAPH_CALL, CALLBACK_SUCCESS_CODE, GodotFacebookUtils.jsonToDictionary(responseJson));
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
                 }
                 graphPath = null;
             }
@@ -790,70 +761,55 @@ public class GodotFacebook extends GodotPlugin {
         graphRequest.executeAsync();
     }
 
-    /**
-     * Create a Facebook Response object that matches the one for the Javascript SDK
-     *
-     * @return JSONObject - the response object
-     */
-    public JSONObject getResponse() {
-        String response;
+    private Dictionary getResponse() {
+        Dictionary dictionary = new Dictionary();
+
         final AccessToken accessToken = AccessToken.getCurrentAccessToken();
         if (hasAccessToken()) {
             long dataAccessExpirationTimeInterval = accessToken.getDataAccessExpirationTime().getTime() / 1000L;
             Date today = new Date();
             long expiresTimeInterval = (accessToken.getExpires().getTime() - today.getTime()) / 1000L;
-            response = "{"
-                    + "\"status\": \"connected\","
-                    + "\"authResponse\": {"
-                    + "\"accessToken\": \"" + accessToken.getToken() + "\","
-                    + "\"data_access_expiration_time\": \"" + Math.max(dataAccessExpirationTimeInterval, 0) + "\","
-                    + "\"expiresIn\": \"" + Math.max(expiresTimeInterval, 0) + "\","
-                    + "\"userID\": \"" + accessToken.getUserId() + "\""
-                    + "}"
-                    + "}";
+
+            Dictionary authResponse = new Dictionary();
+
+            dictionary.put("status", "connected");
+            dictionary.put("authResponse", authResponse);
+            authResponse.put("accessToken", accessToken.getToken());
+            authResponse.put("data_access_expiration_time", Math.max(dataAccessExpirationTimeInterval, 0));
+            authResponse.put("expiresIn", Math.max(expiresTimeInterval, 0));
+            authResponse.put("userID", accessToken.getUserId());
+
         } else {
-            response = "{"
-                    + "\"status\": \"unknown\""
-                    + "}";
+            dictionary.put("status", "unknown");
         }
-        try {
-            return new JSONObject(response);
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-        return new JSONObject();
+
+        return dictionary;
     }
 
-    public JSONObject getFacebookRequestErrorResponse(FacebookRequestError error) {
+    public Dictionary getFacebookRequestErrorResponse(FacebookRequestError error) {
 
-        String response = "{"
-                + "\"errorCode\": \"" + error.getErrorCode() + "\","
-                + "\"errorType\": \"" + error.getErrorType() + "\","
-                + "\"errorMessage\": \"" + error.getErrorMessage() + "\"";
+        Dictionary dictionary = new Dictionary();
+        dictionary.put("errorCode", error.getErrorCode());
+        dictionary.put("errorType", error.getErrorType());
+        dictionary.put("errorMessage", error.getErrorMessage());
 
         if (error.getErrorUserMessage() != null) {
-            response += ",\"errorUserMessage\": \"" + error.getErrorUserMessage() + "\"";
+            dictionary.put("errorUserMessage", error.getErrorUserMessage());
         }
 
         if (error.getErrorUserTitle() != null) {
-            response += ",\"errorUserTitle\": \"" + error.getErrorUserTitle() + "\"";
+            dictionary.put("errorUserTitle", error.getErrorUserTitle());
         }
 
-        response += "}";
-
-        try {
-            return new JSONObject(response);
-        } catch (JSONException e) {
-
-            e.printStackTrace();
-        }
-        return new JSONObject();
+        return dictionary;
     }
 
-    public JSONObject getErrorResponse(Exception error, String message, int errorCode) {
+    public Dictionary getErrorResponse(Exception error, String message, int errorCode) {
         if (error instanceof FacebookServiceException) {
             return getFacebookRequestErrorResponse(((FacebookServiceException) error).getRequestError());
         }
+
+        Dictionary dictionary = new Dictionary();
 
         String response = "{";
 
@@ -862,41 +818,27 @@ public class GodotFacebook extends GodotPlugin {
         }
 
         if (errorCode != INVALID_ERROR_CODE) {
-            response += "\"errorCode\": \"" + errorCode + "\",";
+            dictionary.put("errorCode", errorCode);
         }
 
         if (message == null) {
             message = error.getMessage();
         }
 
-        response += "\"errorMessage\": \"" + message + "\"}";
+        dictionary.put("errorMessage", message);
 
-        try {
-            return new JSONObject(response);
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-        return new JSONObject();
+        return dictionary;
     }
 
-    public JSONObject getProfile() {
-        String response;
+    public Dictionary getProfile() {
+        Dictionary dictionary = new Dictionary();
         final Profile profile = Profile.getCurrentProfile();
-        if (profile == null) {
-            response = "{}";
-        } else {
-            response = "{"
-                    + "\"userID\": \"" + profile.getId() + "\","
-                    + "\"firstName\": \"" + profile.getFirstName() + "\","
-                    + "\"lastName\": \"" + profile.getLastName() + "\""
-                    + "}";
+        if (profile != null) {
+            dictionary.put("userID", profile.getId());
+            dictionary.put("firstName", profile.getFirstName());
+            dictionary.put("lastName", profile.getLastName());
         }
-        try {
-            return new JSONObject(response);
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-        return new JSONObject();
+        return dictionary;
     }
 
     @NonNull
@@ -910,14 +852,14 @@ public class GodotFacebook extends GodotPlugin {
     public Set<SignalInfo> getPluginSignals() {
         Set<SignalInfo> signals = new HashSet<>();
 
-        signals.add(new SignalInfo(ON_LOGIN, Integer.class, JSONObject.class));
-        signals.add(new SignalInfo(GET_LOGIN_STATUS, JSONObject.class));
+        signals.add(new SignalInfo(ON_LOGIN, Integer.class, Dictionary.class));
+        signals.add(new SignalInfo(GET_LOGIN_STATUS, Dictionary.class));
         signals.add(new SignalInfo(SHOW_DIALOG_RESPONSE, Integer.class, String.class));
-        signals.add(new SignalInfo(SHOW_DIALOG_RESPONSE, Integer.class, JSONObject.class));
+        signals.add(new SignalInfo(SHOW_DIALOG_RESPONSE, Integer.class, Dictionary.class));
         signals.add(new SignalInfo(GRAPH_CALL, Integer.class, String.class));
-        signals.add(new SignalInfo(GRAPH_CALL, Integer.class, JSONObject.class));
+        signals.add(new SignalInfo(GRAPH_CALL, Integer.class, Dictionary.class));
         signals.add(new SignalInfo(GET_DEFERRED_APP_LINK, String.class));
-        signals.add(new SignalInfo(REAUTHORIZE, Integer.class, JSONObject.class));
+        signals.add(new SignalInfo(REAUTHORIZE, Integer.class, Dictionary.class));
 
         return signals;
     }
