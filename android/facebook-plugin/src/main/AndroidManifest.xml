@@ -2,18 +2,27 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="as.studio.facebook_plugin">
 
+    <queries>
+        <provider android:authorities="com.facebook.katana.provider.PlatformProvider"
+            android:exported="false" />
+    </queries>
+
     <application>
         <meta-data
             android:name="org.godotengine.plugin.v1.GodotFacebook"
             android:value="as.studio.facebook_plugin.GodotFacebook" />
 
-        <meta-data android:name="com.facebook.sdk.ApplicationId" android:value="@string/facebook_app_id"/>
-        <meta-data android:name="com.facebook.sdk.ClientToken" android:value="@string/facebook_client_token"/>
+        <meta-data
+            android:name="com.facebook.sdk.ApplicationId"
+            android:value="." />
+        <meta-data
+            android:name="com.facebook.sdk.ClientToken"
+            android:value="." />
 
-        <activity android:name="com.facebook.FacebookActivity"
-            android:configChanges=
-                "keyboard|keyboardHidden|screenLayout|screenSize|orientation"
-            android:label="@string/app_name" />
+        <activity
+            android:name="com.facebook.FacebookActivity"
+            android:configChanges="keyboard|keyboardHidden|screenLayout|screenSize|orientation"
+            android:label="."/>
     </application>
 
 </manifest>

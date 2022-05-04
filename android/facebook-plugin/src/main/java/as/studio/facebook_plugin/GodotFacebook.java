@@ -47,7 +47,6 @@ import org.godotengine.godot.Godot;
 import org.godotengine.godot.plugin.GodotPlugin;
 import org.godotengine.godot.plugin.SignalInfo;
 import org.godotengine.godot.plugin.UsedByGodot;
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -60,33 +59,25 @@ import java.util.Currency;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 public class GodotFacebook extends GodotPlugin {
 
-    private static final String ON_LOGIN = "on_login";
-    private static final String GET_LOGIN_STATUS = "get_login_status";
+    private static final String LOGIN_RESPONSE = "login_response";
+    private static final String LOGIN_STATUS_RESPONSE = "login_status_response";
     private static final String SHOW_DIALOG_RESPONSE = "show_dialog_response";
-    private static final String GRAPH_CALL = "graph_call";
-    private static final String GET_DEFERRED_APP_LINK = "get_deferred_app_link";
-    private static final String REAUTHORIZE = "reauthorize";
+    private static final String GRAPH_CALL_RESPONSE = "graph_call_response";
+    private static final String DEFERRED_APP_LINK_RESPONSE = "deferred_app_link_response";
+    private static final String REAUTHORIZE_RESPONSE = "reauthorize_response";
 
     private static final int CALLBACK_ERROR_CODE = 0;
     private static final int CALLBACK_SUCCESS_CODE = 1;
 
     private static final int INVALID_ERROR_CODE = -2; //-1 is FacebookRequestError.INVALID_ERROR_CODE
-    @SuppressWarnings("serial")
-    private static final Set<String> OTHER_PUBLISH_PERMISSIONS = new HashSet<String>() {
-        {
-            add("ads_management");
-            add("create_event");
-            add("rsvp_event");
-        }
-    };
-    private final String TAG = "ConnectPlugin";
+
+    private final String TAG = "FacebookPlugin";
 
     private CallbackManager callbackManager;
     private AppEventsLogger logger;
@@ -120,7 +111,7 @@ public class GodotFacebook extends GodotPlugin {
                     public void onCompleted(JSONObject jsonObject, GraphResponse response) {
                         if (response.getError() != null) {
                             if (lastGraphCall) {
-                                emitSignal(GRAPH_CALL, CALLBACK_ERROR_CODE, getFacebookRequestErrorResponse(response.getError()));
+                                emitSignal(GRAPH_CALL_RESPONSE, CALLBACK_ERROR_CODE, getFacebookRequestErrorResponse(response.getError()));
                             }
                             return;
                         }
@@ -133,10 +124,10 @@ public class GodotFacebook extends GodotPlugin {
                         }
 
                         Log.d(TAG, "returning login object " + jsonObject.toString());
-                        emitSignal(ON_LOGIN, CALLBACK_SUCCESS_CODE, getResponse());
+                        emitSignal(LOGIN_RESPONSE, CALLBACK_SUCCESS_CODE, getResponse());
 
                         if (lastReauthorize) {
-                            emitSignal(REAUTHORIZE, CALLBACK_SUCCESS_CODE, getResponse());
+                            emitSignal(REAUTHORIZE_RESPONSE, CALLBACK_SUCCESS_CODE, getResponse());
                             lastReauthorize = false;
                         }
                     }
@@ -146,10 +137,10 @@ public class GodotFacebook extends GodotPlugin {
             @Override
             public void onCancel() {
                 FacebookOperationCanceledException e = new FacebookOperationCanceledException();
-                handleError(e, ON_LOGIN);
+                handleError(e, LOGIN_RESPONSE);
 
                 if (lastReauthorize) {
-                    handleError(e, REAUTHORIZE);
+                    handleError(e, REAUTHORIZE_RESPONSE);
                     lastReauthorize = false;
                 }
             }
@@ -157,10 +148,10 @@ public class GodotFacebook extends GodotPlugin {
             @Override
             public void onError(FacebookException e) {
                 Log.e("Activity", String.format("Error: %s", e.toString()));
-                handleError(e, ON_LOGIN);
+                handleError(e, LOGIN_RESPONSE);
 
                 if (lastReauthorize) {
-                    handleError(e, REAUTHORIZE);
+                    handleError(e, REAUTHORIZE_RESPONSE);
                     lastReauthorize = false;
                 }
 
@@ -260,20 +251,28 @@ public class GodotFacebook extends GodotPlugin {
 
     @Keep
     @UsedByGodot
-    public void setClientToken(String token) {
+    public void initApplication(String appId, String appName, String token) {
+        setApplicationId(appId);
+        setApplicationName(appName);
+        setClientToken(token);
+    }
+
+    private void setClientToken(String token) {
         FacebookSdk.setClientToken(token);
+    }
+
+    private void setApplicationName(String appName) {
+        FacebookSdk.setApplicationName(appName);
+    }
+
+    private void setApplicationId(String appId) {
+        FacebookSdk.setApplicationId(appId);
     }
 
     @Keep
     @UsedByGodot
     public String getClientToken() {
         return FacebookSdk.getClientToken();
-    }
-
-    @Keep
-    @UsedByGodot
-    public void setApplicationId(String appId) {
-        FacebookSdk.setApplicationId(appId);
     }
 
     @Keep
@@ -286,12 +285,6 @@ public class GodotFacebook extends GodotPlugin {
     @UsedByGodot
     public String getApplicationName() {
         return FacebookSdk.getApplicationName();
-    }
-
-    @Keep
-    @UsedByGodot
-    public void setApplicationName(String appName) {
-        FacebookSdk.setApplicationName(appName);
     }
 
     @Keep
@@ -325,14 +318,11 @@ public class GodotFacebook extends GodotPlugin {
     @UsedByGodot
     public void getDeferredApplink() {
         AppLinkData.fetchDeferredAppLinkData(getActivity().getApplicationContext(),
-                new AppLinkData.CompletionHandler() {
-                    @Override
-                    public void onDeferredAppLinkDataFetched(AppLinkData appLinkData) {
-                        if (appLinkData == null) {
-                            emitSignal(GET_DEFERRED_APP_LINK, "");
-                        } else {
-                            emitSignal(GET_DEFERRED_APP_LINK, appLinkData.getTargetUri().toString());
-                        }
+                appLinkData -> {
+                    if (appLinkData == null) {
+                        emitSignal(DEFERRED_APP_LINK_RESPONSE, "");
+                    } else {
+                        emitSignal(DEFERRED_APP_LINK_RESPONSE, appLinkData.getTargetUri().toString());
                     }
                 });
     }
@@ -482,7 +472,7 @@ public class GodotFacebook extends GodotPlugin {
         }
 
         if (declinedPermission != null) {
-            emitSignal(GRAPH_CALL, CALLBACK_ERROR_CODE, "This request needs declined permission: " + declinedPermission);
+            emitSignal(GRAPH_CALL_RESPONSE, CALLBACK_ERROR_CODE, "This request needs declined permission: " + declinedPermission);
             return;
         }
 
@@ -627,16 +617,16 @@ public class GodotFacebook extends GodotPlugin {
             AccessToken.refreshCurrentAccessTokenAsync(new AccessToken.AccessTokenRefreshCallback() {
                 @Override
                 public void OnTokenRefreshed(AccessToken accessToken) {
-                    emitSignal(GET_LOGIN_STATUS, getResponse());
+                    emitSignal(LOGIN_STATUS_RESPONSE, getResponse());
                 }
 
                 @Override
                 public void OnTokenRefreshFailed(FacebookException exception) {
-                    emitSignal(GET_LOGIN_STATUS, getResponse());
+                    emitSignal(LOGIN_STATUS_RESPONSE, getResponse());
                 }
             });
         } else {
-            emitSignal(GET_LOGIN_STATUS, getResponse());
+            emitSignal(LOGIN_STATUS_RESPONSE, getResponse());
         }
     }
 
@@ -724,12 +714,12 @@ public class GodotFacebook extends GodotPlugin {
             @Override
             public void onCompleted(@NonNull GraphResponse response) {
                 if (response.getError() != null) {
-                    emitSignal(GRAPH_CALL, CALLBACK_ERROR_CODE, getFacebookRequestErrorResponse(response.getError()));
+                    emitSignal(GRAPH_CALL_RESPONSE, CALLBACK_ERROR_CODE, getFacebookRequestErrorResponse(response.getError()));
                 } else {
                     try {
                         JSONObject responseJson = response.getJSONObject();
                         if (responseJson != null)
-                            emitSignal(GRAPH_CALL, CALLBACK_SUCCESS_CODE, GodotFacebookUtils.jsonToDictionary(responseJson));
+                            emitSignal(GRAPH_CALL_RESPONSE, CALLBACK_SUCCESS_CODE, GodotFacebookUtils.jsonToDictionary(responseJson));
                     } catch (JSONException e) {
                         e.printStackTrace();
                     }
@@ -811,8 +801,6 @@ public class GodotFacebook extends GodotPlugin {
 
         Dictionary dictionary = new Dictionary();
 
-        String response = "{";
-
         if (error instanceof FacebookDialogException) {
             errorCode = ((FacebookDialogException) error).getErrorCode();
         }
@@ -852,14 +840,14 @@ public class GodotFacebook extends GodotPlugin {
     public Set<SignalInfo> getPluginSignals() {
         Set<SignalInfo> signals = new HashSet<>();
 
-        signals.add(new SignalInfo(ON_LOGIN, Integer.class, Dictionary.class));
-        signals.add(new SignalInfo(GET_LOGIN_STATUS, Dictionary.class));
+        signals.add(new SignalInfo(LOGIN_RESPONSE, Integer.class, Dictionary.class));
+        signals.add(new SignalInfo(LOGIN_STATUS_RESPONSE, Dictionary.class));
         signals.add(new SignalInfo(SHOW_DIALOG_RESPONSE, Integer.class, String.class));
         signals.add(new SignalInfo(SHOW_DIALOG_RESPONSE, Integer.class, Dictionary.class));
-        signals.add(new SignalInfo(GRAPH_CALL, Integer.class, String.class));
-        signals.add(new SignalInfo(GRAPH_CALL, Integer.class, Dictionary.class));
-        signals.add(new SignalInfo(GET_DEFERRED_APP_LINK, String.class));
-        signals.add(new SignalInfo(REAUTHORIZE, Integer.class, Dictionary.class));
+        signals.add(new SignalInfo(GRAPH_CALL_RESPONSE, Integer.class, String.class));
+        signals.add(new SignalInfo(GRAPH_CALL_RESPONSE, Integer.class, Dictionary.class));
+        signals.add(new SignalInfo(DEFERRED_APP_LINK_RESPONSE, String.class));
+        signals.add(new SignalInfo(REAUTHORIZE_RESPONSE, Integer.class, Dictionary.class));
 
         return signals;
     }
