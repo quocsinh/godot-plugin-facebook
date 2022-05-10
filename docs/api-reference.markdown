@@ -102,6 +102,7 @@ For options information see:
 [Facebook send dialog documentation](https://developers.facebook.com/docs/sharing/reference/send-dialog)
 
 # The Graph API
+---
 `.graph_api(data : Dictionary)`
 ```markdown
 {
@@ -150,3 +151,57 @@ Allows access to the Facebook Graph API. This API allows for additional permissi
 }
 ```
 **NOTE:** Both _value_ and _currency_ are required. The currency specification is expected to be an ISO 4217 currency code. _parameters_ is optional.
+
+# Data Processing Options
+---
+`.set_data_processing_options(options : Array)`
+
+This plugin allows developers to set Data Processing Options as part of compliance with the California Consumer Privacy Act (CCPA).
+
+For more information see: [Facebook Documentation](https://developers.facebook.com/docs/app-events/guides/ccpa)
+
+# Advanced Matching
+---
+`.set_user_data(data : Dictionary)`
+
+With [Advanced Matching](https://developers.facebook.com/docs/app-events/advanced-matching/), Facebook can match conversion events to your customers to optimize your ads and build larger re-marketing audiences.
+
+```markdown
+{
+    "em": "jsmith@example.com", //email
+    "fn": "john", //first name
+    "ln": "smith", //last name
+    "ph", "16505554444", //phone number
+    "db": "19910526", //birthdate
+    "ge": "f", //gender
+    "ct": "menlopark", //city
+    "st": "ca", //state
+    "zp": "94025", //zip code
+    "cn": "us" //country
+}
+```
+`.clear_user_data()`
+
+# Get Access Token
+---
+`.get_access_token()`
+
+# GDPR Compliance
+---
+`set_auto_log_app_events_enabled(enabled : bool)`
+
+This plugin supports Facebook's [GDPR Compliance](https://developers.facebook.com/docs/app-events/gdpr-compliance/) Delaying Automatic Event Collection.
+
+In order to auto-logging after an end User provides consent by calling the `set_auto_log_app_events_enabled` method and set it to true.
+
+# Collection of Advertiser IDs
+---
+`.set_advertiser_id_collection_enabled(enabled : bool)`
+
+To enable collection by calling the `set_advertiser_id_collection_enabled` method and set it to true.
+
+# App Ads and Deep Links
+---
+`.get_deferred_app_link()`
+
+See the [Facebook Developer documentation](https://developers.facebook.com/docs/app-ads/deep-linking/) for more details.
